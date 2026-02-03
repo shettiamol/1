@@ -4,10 +4,16 @@ import { Transaction, Category } from "../types";
 
 export const isAIThrottled = (): boolean => false;
 
+/**
+ * Bulletproof AI instance creator to prevent top-level process.env reference errors.
+ */
+const getAIInstance = () => {
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
+
 export const getAIInsight = async (transactions: Transaction[], categories: Category[], _forceRefresh = false): Promise<string> => {
   try {
-    // API key accessed strictly inside function scope to prevent top-level ReferenceErrors
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Analyze these recent transactions and provide a short, actionable financial insight (max 50 words). 
@@ -33,7 +39,7 @@ export interface ForecastSuggestion {
 
 export const getBudgetForecast = async (transactions: Transaction[], categories: Category[]): Promise<ForecastSuggestion[]> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Suggest budget adjustments based on this data:
@@ -80,7 +86,7 @@ export const generateGoalVisualization = async (
   imageSize: "1K" | "2K" | "4K"
 ): Promise<string | null> => {
   try {
-    const imageAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const imageAi = getAIInstance();
     const response = await imageAi.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: {

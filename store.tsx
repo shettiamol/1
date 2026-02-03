@@ -4,14 +4,6 @@ import { Transaction, Category, Account, TransactionType, SubCategory, SubAccoun
 
 export const ADMIN_MASTER_CODE = '369639';
 
-interface PurgeOptions {
-  transactions?: boolean;
-  accounts?: boolean;
-  categories?: boolean;
-  goals?: boolean;
-  billReminders?: boolean;
-}
-
 interface AppState {
   user: User | null;
   transactions: Transaction[];
@@ -65,7 +57,7 @@ interface AppState {
 
   handleReminderAction: (reminderId: string, action: 'COMPLETED' | 'DISMISSED', specificMY?: string) => void;
   importData: (backup: AppBackup) => void;
-  purgeData: (options: PurgeOptions) => void;
+  purgeData: (options: any) => void;
   deleteUserAccount: () => void;
 }
 
@@ -106,8 +98,15 @@ const DEFAULT_ACCOUNTS: Account[] = [
 const getSafeStorageData = () => {
   try {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    // Deep Check for dashboardWidgets to prevent .filter crash
+    if (parsed.settings && !Array.isArray(parsed.settings.dashboardWidgets)) {
+      parsed.settings.dashboardWidgets = DEFAULT_WIDGETS;
+    }
+    return parsed;
   } catch (e) {
+    console.error("Storage Retrieval Error", e);
     return null;
   }
 };
@@ -136,7 +135,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { 
         ...base, 
         ...cachedData.settings,
-        security: { ...base.security, ...(cachedData.settings.security || {}) }
+        security: { ...base.security, ...(cachedData.settings.security || {}) },
+        dashboardWidgets: Array.isArray(cachedData.settings.dashboardWidgets) ? cachedData.settings.dashboardWidgets : DEFAULT_WIDGETS
       };
     }
     return base;
@@ -175,29 +175,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const dismissPendingTransaction = (id: string) => setPendingTransactions(prev => prev.filter(t => t.id !== id));
   
   const processSMS = (text: string) => {
-    // Robust Regex for Indian Banking & Transaction alerts
+    if (!text) return;
     const amountMatch = text.match(/(?:Rs\.?|INR|₹|amt)\s*([\d,.]+)/i);
     const amount = amountMatch ? parseFloat(amountMatch[1].replace(/,/g, '')) : 0;
-    
-    // Logic to determine direction of flow
     const lowerText = text.toLowerCase();
-    const isExpenseKeywords = ['spent', 'debited', 'paid', 'vpa', 'purchase', 'shopping', 'withdrawn'];
-    const isIncomeKeywords = ['credited', 'received', 'salary', 'refund', 'deposited'];
-    
-    const isExpense = isExpenseKeywords.some(kw => lowerText.includes(kw));
-    const isIncome = isIncomeKeywords.some(kw => lowerText.includes(kw));
-    
+    const isExpense = ['spent', 'debited', 'paid', 'vpa', 'purchase'].some(kw => lowerText.includes(kw));
+    const isIncome = ['credited', 'received', 'salary'].some(kw => lowerText.includes(kw));
     const type = isIncome && !isExpense ? TransactionType.INCOME : TransactionType.EXPENSE;
-
     if (amount > 0) {
       setPendingTransactions(prev => [{
         id: 'pt-' + Math.random().toString(36).substr(2, 9),
-        rawText: text, 
-        amount, 
-        type,
+        rawText: text, amount, type,
         date: new Date().toISOString().split('T')[0],
         time: new Date().toTimeString().slice(0, 5),
-        suggestedTitle: lowerText.includes('vpa') ? 'UPI Payment Detected' : text.length > 25 ? text.substring(0, 25) + '...' : text
+        suggestedTitle: lowerText.includes('vpa') ? 'UPI detected' : text.substring(0, 20) + '...'
       }, ...prev]);
     }
   };
@@ -235,10 +226,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setBillReminders(backup.billReminders || []);
     setGoals(backup.goals || []);
     setHandledReminders(backup.handledReminders || []);
-    setSettings(prev => ({...prev, ...(backup.settings || {})}));
+    if (backup.settings) setSettings(prev => ({...prev, ...backup.settings}));
   };
 
-  const purgeData = (options: PurgeOptions) => {
+  const purgeData = (options: any) => {
     if (options.transactions) setTransactions([]);
     if (options.accounts) setAccounts(DEFAULT_ACCOUNTS);
     if (options.categories) setCategories(DEFAULT_CATEGORIES);

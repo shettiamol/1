@@ -3,22 +3,18 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Category } from "../types";
 
 /**
- * HELPER: Safe AI Key Retrieval
- * Robust verification to prevent ReferenceError in GitHub Pages or basic browser contexts.
+ * HELPER: Bulletproof AI Key Retrieval
+ * Prevents reference errors on strict browser environments.
  */
 const getSafeApiKey = (): string => {
   try {
-    // Check global scope for process object (Node/Vite environments)
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
+    const g = (globalThis as any);
+    if (typeof g.process !== 'undefined' && g.process.env && g.process.env.API_KEY) {
+      return g.process.env.API_KEY;
     }
-    // Check window for process object (some build systems inject this)
-    if (typeof window !== 'undefined' && (window as any).process?.env?.API_KEY) {
-      return (window as any).process.env.API_KEY;
-    }
-  } catch (e) {
-    // Fallback silent
-  }
+    // Check if the bundler injected it into a global variable
+    if (typeof g.API_KEY !== 'undefined') return g.API_KEY;
+  } catch (e) {}
   return '';
 };
 

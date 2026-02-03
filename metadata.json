@@ -1,0 +1,9 @@
+{
+  "name": "Copy of SmartSpend Elite v3",
+  "description": "A high-end income and expense tracker with multi-tier categorization, account hierarchy management, and advanced financial visualizations.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

@@ -100,13 +100,11 @@ const getSafeStorageData = () => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved);
-    // Deep Check for dashboardWidgets to prevent .filter crash
     if (parsed.settings && !Array.isArray(parsed.settings.dashboardWidgets)) {
       parsed.settings.dashboardWidgets = DEFAULT_WIDGETS;
     }
     return parsed;
   } catch (e) {
-    console.error("Storage Retrieval Error", e);
     return null;
   }
 };

@@ -2,30 +2,12 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Transaction, Category } from "../types";
 
-/**
- * HELPER: Bulletproof AI Key Retrieval
- * Prevents reference errors on strict browser environments.
- */
-const getSafeApiKey = (): string => {
-  try {
-    const g = (globalThis as any);
-    if (typeof g.process !== 'undefined' && g.process.env && g.process.env.API_KEY) {
-      return g.process.env.API_KEY;
-    }
-    // Check if the bundler injected it into a global variable
-    if (typeof g.API_KEY !== 'undefined') return g.API_KEY;
-  } catch (e) {}
-  return '';
-};
-
 export const isAIThrottled = (): boolean => false;
 
 export const getAIInsight = async (transactions: Transaction[], categories: Category[], _forceRefresh = false): Promise<string> => {
-  const key = getSafeApiKey();
-  if (!key) return "AI services offline: Authorization key missing.";
-
   try {
-    const ai = new GoogleGenAI({ apiKey: key });
+    // API key accessed strictly inside function scope to prevent top-level ReferenceErrors
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Analyze these recent transactions and provide a short, actionable financial insight (max 50 words). 
@@ -50,11 +32,8 @@ export interface ForecastSuggestion {
 }
 
 export const getBudgetForecast = async (transactions: Transaction[], categories: Category[]): Promise<ForecastSuggestion[]> => {
-  const key = getSafeApiKey();
-  if (!key) return [];
-
   try {
-    const ai = new GoogleGenAI({ apiKey: key });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Suggest budget adjustments based on this data:
@@ -100,11 +79,8 @@ export const generateGoalVisualization = async (
   aspectRatio: "1:1" | "16:9" | "9:16",
   imageSize: "1K" | "2K" | "4K"
 ): Promise<string | null> => {
-  const key = getSafeApiKey();
-  if (!key) return null;
-
   try {
-    const imageAi = new GoogleGenAI({ apiKey: key });
+    const imageAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await imageAi.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: {

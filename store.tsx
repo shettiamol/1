@@ -62,7 +62,7 @@ interface AppState {
 }
 
 const AppContext = createContext<AppState | undefined>(undefined);
-const LOCAL_STORAGE_KEY = 'smart_spend_state_v3_stable';
+const LOCAL_STORAGE_KEY = 'smart_spend_elite_v3_state';
 
 const DEFAULT_WIDGETS: DashboardWidget[] = [
   { id: 'TOTAL_NET', name: 'Net Capital (lifetime)', enabled: true },
@@ -100,11 +100,17 @@ const getSafeStorageData = () => {
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (!saved) return null;
     const parsed = JSON.parse(saved);
+    
+    // Integrity check
+    if (parsed.settings && !parsed.settings.security) {
+      parsed.settings.security = { passcode: undefined, biometricsEnabled: false, autoLockDelay: 0 };
+    }
     if (parsed.settings && !Array.isArray(parsed.settings.dashboardWidgets)) {
       parsed.settings.dashboardWidgets = DEFAULT_WIDGETS;
     }
     return parsed;
   } catch (e) {
+    console.error("Storage Recovery Failed:", e);
     return null;
   }
 };
@@ -118,7 +124,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLocked, setIsLocked] = useState(true);
   
   const [settings, setSettings] = useState<AppSettings>(() => {
-    const base = {
+    const base: AppSettings = {
       incomeColor: '#4ade80',
       expenseColor: '#f87171',
       fontFamily: 'Space Grotesk',
@@ -129,6 +135,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       budgetAlertThreshold: 75,
       security: { passcode: undefined, biometricsEnabled: false, autoLockDelay: 0 }
     };
+    
     if (cachedData?.settings) {
       return { 
         ...base, 
@@ -149,8 +156,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [handledReminders, setHandledReminders] = useState<HandledReminder[]>(cachedData?.handledReminders || []);
 
   useEffect(() => {
-    const data = { transactions, categories, accounts, billReminders, goals, handledReminders, settings, user };
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    try {
+      const data = { transactions, categories, accounts, billReminders, goals, handledReminders, settings, user };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+    } catch (err) {
+      console.error("Storage Write Fault:", err);
+    }
   }, [transactions, categories, accounts, billReminders, goals, handledReminders, settings, user]);
 
   const updateSettings = (s: Partial<AppSettings>) => setSettings(prev => ({ ...prev, ...s }));

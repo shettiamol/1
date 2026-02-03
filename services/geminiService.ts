@@ -5,10 +5,19 @@ import { Transaction, Category } from "../types";
 export const isAIThrottled = (): boolean => false;
 
 /**
- * Bulletproof AI instance creator to prevent top-level process.env reference errors.
+ * Bulletproof AI instance creator. 
+ * Prevents top-level process.env reference errors in restrictive environments.
  */
 const getAIInstance = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) 
+    ? process.env.API_KEY 
+    : null;
+    
+  if (!apiKey) {
+    throw new Error("System Error: AI Access Key is missing from protocol environment.");
+  }
+  
+  return new GoogleGenAI({ apiKey });
 };
 
 export const getAIInsight = async (transactions: Transaction[], categories: Category[], _forceRefresh = false): Promise<string> => {
